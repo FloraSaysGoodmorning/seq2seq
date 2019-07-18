@@ -36,86 +36,86 @@ from seq2seq.training import utils as training_utils
 
 
 class DecoderOutput(
-    namedtuple("DecoderOutput", ["logits", "predicted_ids", "cell_output"])):
-  """Output of an RNN decoder.
+        namedtuple("DecoderOutput", ["logits", "predicted_ids", "cell_output"])):
+    """Output of an RNN decoder.
 
-  Note that we output both the logits and predictions because during
-  dynamic decoding the predictions may not correspond to max(logits).
-  For example, we may be sampling from the logits instead.
-  """
-  pass
+    Note that we output both the logits and predictions because during
+    dynamic decoding the predictions may not correspond to max(logits).
+    For example, we may be sampling from the logits instead.
+    """
+    pass
 
 
 @six.add_metaclass(abc.ABCMeta)
 class RNNDecoder(Decoder, GraphModule, Configurable):
-  """Base class for RNN decoders.
+    """Base class for RNN decoders.
 
-  Args:
-    cell: An instance of ` tf.contrib.rnn.RNNCell`
-    helper: An instance of `tf.contrib.seq2seq.Helper` to assist decoding
-    initial_state: A tensor or tuple of tensors used as the initial cell
-      state.
-    name: A name for this module
-  """
-
-  def __init__(self, params, mode, name):
-    GraphModule.__init__(self, name)
-    Configurable.__init__(self, params, mode)
-    self.params["rnn_cell"] = _toggle_dropout(self.params["rnn_cell"], mode)
-    self.cell = training_utils.get_rnn_cell(**self.params["rnn_cell"])
-    # Not initialized yet
-    self.initial_state = None
-    self.helper = None
-
-  @abc.abstractmethod
-  def initialize(self, name=None):
-    raise NotImplementedError
-
-  @abc.abstractmethod
-  def step(self, name=None):
-    raise NotImplementedError
-
-  @property
-  def batch_size(self):
-    return tf.shape(nest.flatten([self.initial_state])[0])[0]
-
-  def _setup(self, initial_state, helper):
-    """Sets the initial state and helper for the decoder.
+    Args:
+      cell: An instance of ` tf.contrib.rnn.RNNCell`
+      helper: An instance of `tf.contrib.seq2seq.Helper` to assist decoding
+      initial_state: A tensor or tuple of tensors used as the initial cell
+        state.
+      name: A name for this module
     """
-    self.initial_state = initial_state
-    self.helper = helper
 
-  def finalize(self, outputs, final_state):
-    """Applies final transformation to the decoder output once decoding is
-    finished.
-    """
-    #pylint: disable=R0201
-    return (outputs, final_state)
+    def __init__(self, params, mode, name):
+        GraphModule.__init__(self, name)
+        Configurable.__init__(self, params, mode)
+        self.params["rnn_cell"] = _toggle_dropout(self.params["rnn_cell"], mode)
+        self.cell = training_utils.get_rnn_cell(**self.params["rnn_cell"])
+        # Not initialized yet
+        self.initial_state = None
+        self.helper = None
 
-  @staticmethod
-  def default_params():
-    return {
-        "max_decode_length": 100,
-        "rnn_cell": _default_rnn_cell_params(),
-        "init_scale": 0.04,
-    }
+    @abc.abstractmethod
+    def initialize(self, name=None):
+        raise NotImplementedError
 
-  def _build(self, initial_state, helper):
-    if not self.initial_state:
-      self._setup(initial_state, helper)
+    @abc.abstractmethod
+    def step(self, name=None):
+        raise NotImplementedError
 
-    scope = tf.get_variable_scope()
-    scope.set_initializer(tf.random_uniform_initializer(
-        -self.params["init_scale"],
-        self.params["init_scale"]))
+    @property
+    def batch_size(self):
+        return tf.shape(nest.flatten([self.initial_state])[0])[0]
 
-    maximum_iterations = None
-    if self.mode == tf.contrib.learn.ModeKeys.INFER:
-      maximum_iterations = self.params["max_decode_length"]
+    def _setup(self, initial_state, helper):
+        """Sets the initial state and helper for the decoder.
+        """
+        self.initial_state = initial_state
+        self.helper = helper
 
-    outputs, final_state = dynamic_decode(
-        decoder=self,
-        output_time_major=True,
-        impute_finished=False,
-        maximum_iterations=maximum_iterations)
-    return self.finalize(outputs, final_state)
+    def finalize(self, outputs, final_state):
+        """Applies final transformation to the decoder output once decoding is
+        finished.
+        """
+        #pylint: disable=R0201
+        return (outputs, final_state)
+
+    @staticmethod
+    def default_params():
+        return {
+            "max_decode_length": 100,
+            "rnn_cell": _default_rnn_cell_params(),
+            "init_scale": 0.04,
+        }
+
+    def _build(self, initial_state, helper):
+        if not self.initial_state:
+            self._setup(initial_state, helper)
+
+        scope = tf.get_variable_scope()
+        scope.set_initializer(tf.random_uniform_initializer(
+            -self.params["init_scale"],
+            self.params["init_scale"]))
+
+        maximum_iterations = None
+        if self.mode == tf.contrib.learn.ModeKeys.INFER:
+            maximum_iterations = self.params["max_decode_length"]
+
+        outputs, final_state = dynamic_decode(
+            decoder=self,
+            output_time_major=True,
+            impute_finished=False,
+            maximum_iterations=maximum_iterations)
+        return self.finalize(outputs, final_state)

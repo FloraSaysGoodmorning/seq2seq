@@ -20,46 +20,51 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+
 import tensorflow as tf
 from seq2seq.decoders.rnn_decoder import RNNDecoder, DecoderOutput
 
 
 class BasicDecoder(RNNDecoder):
-  """Simple RNN decoder that performed a softmax operations on the cell output.
-  """
+    """Simple RNN decoder that performed a softmax operations on the cell output.
+    """
 
-  def __init__(self, params, mode, vocab_size, name="basic_decoder"):
-    super(BasicDecoder, self).__init__(params, mode, name)
-    self.vocab_size = vocab_size
+    def __init__(self, params, mode, vocab_size, name="basic_decoder"):
+        super(BasicDecoder, self).__init__(params, mode, name)
+        self.vocab_size = vocab_size
+        # vocab_size: int
 
-  def compute_output(self, cell_output):
-    """Computes the decoder outputs."""
-    return tf.contrib.layers.fully_connected(
-        inputs=cell_output, num_outputs=self.vocab_size, activation_fn=None)
+    def compute_output(self, cell_output):
+        """Computes the decoder outputs."""
+        return tf.contrib.layers.fully_connected(
+            inputs=cell_output, num_outputs=self.vocab_size, activation_fn=None)
+        # return tensor with what shape ?
 
-  @property
-  def output_size(self):
-    return DecoderOutput(
-        logits=self.vocab_size,
-        predicted_ids=tf.TensorShape([]),
-        cell_output=self.cell.output_size)
+    @property
+    def output_size(self):
+        # namedtuple("DecoderOutput", ["logits", "predicted_ids", "cell_output"])
+        return DecoderOutput(
+            logits=self.vocab_size,
+            predicted_ids=tf.TensorShape([]),
+            cell_output=self.cell.output_size)
+        # self.cell: An instance of `tf.contrib.rnn.RNNCell`
 
-  @property
-  def output_dtype(self):
-    return DecoderOutput(
-        logits=tf.float32, predicted_ids=tf.int32, cell_output=tf.float32)
+    @property
+    def output_dtype(self):
+        return DecoderOutput(
+            logits=tf.float32, predicted_ids=tf.int32, cell_output=tf.float32)
 
-  def initialize(self, name=None):
-    finished, first_inputs = self.helper.initialize()
-    return finished, first_inputs, self.initial_state
+    def initialize(self, name=None):
+        finished, first_inputs = self.helper.initialize()
+        return finished, first_inputs, self.initial_state
 
-  def step(self, time_, inputs, state, name=None):
-    cell_output, cell_state = self.cell(inputs, state)
-    logits = self.compute_output(cell_output)
-    sample_ids = self.helper.sample(
-        time=time_, outputs=logits, state=cell_state)
-    outputs = DecoderOutput(
-        logits=logits, predicted_ids=sample_ids, cell_output=cell_output)
-    finished, next_inputs, next_state = self.helper.next_inputs(
-        time=time_, outputs=outputs, state=cell_state, sample_ids=sample_ids)
-    return (outputs, next_state, next_inputs, finished)
+    def step(self, time_, inputs, state, name=None):
+        cell_output, cell_state = self.cell(inputs, state)
+        logits = self.compute_output(cell_output)
+        sample_ids = self.helper.sample(
+            time=time_, outputs=logits, state=cell_state)
+        outputs = DecoderOutput(
+            logits=logits, predicted_ids=sample_ids, cell_output=cell_output)
+        finished, next_inputs, next_state = self.helper.next_inputs(
+            time=time_, outputs=outputs, state=cell_state, sample_ids=sample_ids)
+        return (outputs, next_state, next_inputs, finished)
