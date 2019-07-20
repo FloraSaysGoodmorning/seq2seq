@@ -110,12 +110,11 @@ def cell_from_spec(cell_classname, cell_params):
     """
 
     cell_params = cell_params.copy()
-
     # Find the cell class
     cell_class = locate(cell_classname) or getattr(rnn_cell, cell_classname)
-
     # Make sure additional arguments are valid
-    cell_args = set(inspect.getargspec(cell_class.__init__).args[1:])
+    # cell_args = set(inspect.getargspec(cell_class.__init__).args[1:])
+    cell_args = set(list(inspect.signature(cell_class.__init__).parameters.keys())[1:])
     for key in cell_params.keys():
         if key not in cell_args:
             raise ValueError(
